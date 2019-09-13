@@ -1,0 +1,13 @@
+name: local_env_for_trade
+channels:
+  - pytorch
+  - defaults
+dependencies:
+  - python=3.7.1
+  - matplotlib=3.1.0
+  - numpy=1.16.4
+  - pytorch=1.2.0
+  - tqdm=4.32.1
+  - pip:
+    - embeddings
+    - quadprog
