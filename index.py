@@ -179,8 +179,6 @@ def evaluate_metrics(all_prediction, from_which, slot_temp):
 if __name__ == '__main__':
     args = get_args()
     device = torch.device('cuda:{}'.format(args['cuda']) if torch.cuda.is_available() else 'cpu')
-    torch.set_default_tensor_type(device)
-    exit(1)
 
     (
         train_dataloader,
