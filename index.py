@@ -40,7 +40,6 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
             current_epoch_progress_bar.set_description(phase)
             for data in tqdm(dataloader, total=len(dataloader)):
                 data['context'].to(device=device)
-                data['context_len'].to(device=device)
                 data['generate_y'].to(device=device)
                 # zero the parameter gradients
                 optimizer.zero_grad()
