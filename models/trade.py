@@ -184,13 +184,13 @@ class Generator(nn.Module):
             this_slot = domain_slot.split("-")[1]
             if this_domain in self.slot_w2i.keys():
                 domain_w2idx = self.slot_w2i[this_domain]
-                domain_w2idx = torch.tensor([domain_w2idx])
+                domain_w2idx = torch.tensor([domain_w2idx], device=self.device)
                 # if USE_CUDA: domain_w2idx = domain_w2idx.cuda()
                 domain_emb = self.Slot_emb(domain_w2idx)
             # Slot embbeding
             if this_slot in self.slot_w2i.keys():
                 slot_w2idx = self.slot_w2i[this_slot]
-                slot_w2idx = torch.tensor([slot_w2idx])
+                slot_w2idx = torch.tensor([slot_w2idx], device=self.device)
                 # if USE_CUDA: slot_w2idx = slot_w2idx.cuda()
                 slot_emb = self.Slot_emb(slot_w2idx)
 
@@ -223,7 +223,7 @@ class Generator(nn.Module):
                 ) # (batch, hidden_size * 3)
                 p_gen = torch.sigmoid(self.W_ratio(p_gen_vectors)) # (batch, 1)
 
-                p_context_ptr = torch.zeros(p_vocab.size())
+                p_context_ptr = torch.zeros(p_vocab.size(), device=self.device)
                 p_gen = p_gen.expand_as(p_context_ptr)
                 # if USE_CUDA: p_context_ptr = p_context_ptr.cuda()
                 p_context_ptr.scatter_add_(1, story, scores)

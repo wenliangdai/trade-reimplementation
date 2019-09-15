@@ -41,6 +41,9 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
             for data in tqdm(dataloader, total=len(dataloader)):
                 data['context'] = data['context'].to(device=device)
                 data['generate_y'] = data['generate_y'].to(device=device)
+                data['y_lengths'] = data['y_lengths'].to(device=device)
+                data['turn_domain'] = data['turn_domain'].to(device=device)
+                data['gating_label'] = data['gating_label'].to(device=device)
                 # zero the parameter gradients
                 optimizer.zero_grad()
 
