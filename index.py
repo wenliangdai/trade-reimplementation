@@ -39,8 +39,8 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
             current_epoch_progress_bar = tqdm(dataloader, total=len(dataloader))
             current_epoch_progress_bar.set_description(phase)
             for data in tqdm(dataloader, total=len(dataloader)):
-                data['context'].to(device=device)
-                data['generate_y'].to(device=device)
+                data['context'] = data['context'].to(device=device)
+                data['generate_y'] = data['generate_y'].to(device=device)
                 # zero the parameter gradients
                 optimizer.zero_grad()
 
@@ -189,7 +189,7 @@ if __name__ == '__main__':
         slots_dict=slots_dict,
         vocabs=vocabs
     )
-    model.to(device=device)
+    model = model.to(device=device)
 
     criterion_ptr = nn.CrossEntropyLoss(ignore_index=PAD_TOKEN)
     criterion_gate = nn.CrossEntropyLoss()

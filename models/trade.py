@@ -49,7 +49,8 @@ class Trade(nn.Module):
                 n=np.ones((story_size[0], story_size[1]), dtype=np.int64),
                 p=1 - self.dropout
             )
-            rand_mask = torch.Tensor(rand_mask)
+            rand_mask = torch.Tensor(data=rand_mask).long()
+            rand_mask = rand_mask.to(device=self.device)
             # if USE_CUDA:
             #     rand_mask = rand_mask.cuda()
             story = data['context'] * rand_mask.long()
