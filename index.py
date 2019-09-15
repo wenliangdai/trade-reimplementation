@@ -1,3 +1,4 @@
+import os
 import torch
 import copy
 import time
@@ -10,14 +11,6 @@ from cli import get_args
 from data_preprocess import get_all_data
 from models.trade import Trade
 from config import PAD_TOKEN, SLOT_GATE_DICT, SLOT_GATE_DICT_INVERSE
-
-
-if cuda.is_available() and cuda.device_count() > 0:
-    USE_CUDA = True
-    iprint('Using device: ' + torch.cuda.get_device_name(device=cuda.current_device()))
-else:
-    USE_CUDA = False
-    iprint('Using CPU')
 
 
 def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion_gate, optimizer, scheduler, num_epochs):
@@ -176,7 +169,10 @@ def evaluate_metrics(all_prediction, from_which, slot_temp):
 
 if __name__ == '__main__':
     args = get_args()
-    device = torch.device('cuda:{}'.format(args['cuda']) if torch.cuda.is_available() else 'cpu')
+    # Only set the GPU to be used visible, and so just specify cuda:0 as the device
+    os.environ["CUDA_VISIBLE_DEVICES"] = args['cuda']
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    iprint('Using device = {}'.format(device))
 
     (
         train_dataloader,
