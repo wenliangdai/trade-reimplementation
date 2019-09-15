@@ -20,8 +20,8 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
 
     total_progress_bar = tqdm(range(args['epoch']))
     for n_epoch in total_progress_bar:
-        # iprint('Epoch {}'.format(n_epoch))
-        # print('-' * 10)
+        iprint('Epoch {}'.format(n_epoch))
+        print('-' * 10)
         total_progress_bar.set_description('Training progress (current epoch {})'.format(n_epoch + 1))
         for phase in ['train', 'val']:
             if phase == 'train':
@@ -129,8 +129,9 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
             # deep copy the model
             if phase == 'val':
                 joint_acc_score_ptr, F1_score_ptr, turn_acc_score_ptr = evaluate_metrics(predictions, "pred_bs_ptr", slots_dict['dev'])
-                evaluation_metrics = {"Joint Acc": joint_acc_score_ptr, "Turn Acc": turn_acc_score_ptr, "Joint F1": F1_score_ptr}
-                print(evaluation_metrics)
+                print("Joint Acc: {:.4f}".format(joint_acc_score_ptr))
+                print("Turn Acc: {:.4f}".format(turn_acc_score_ptr))
+                print("Joint F1: {:.4f}".format(F1_score_ptr))
                 if joint_acc_score_ptr > best_joint_acc:
                     best_joint_acc = joint_acc_score_ptr
                     best_model_wts = copy.deepcopy(model.state_dict())
