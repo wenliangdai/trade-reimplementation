@@ -17,7 +17,7 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
     since = time.time()
 
     best_model_wts = copy.deepcopy(model.state_dict())
-    best_acc = 0.0
+    best_joint_acc = 0.0
 
     total_progress_bar = tqdm(range(args['epoch']))
     for n_epoch in total_progress_bar:
@@ -38,7 +38,7 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
             dataloader = dataloaders[phase]
             current_epoch_progress_bar = tqdm(dataloader, total=len(dataloader))
             current_epoch_progress_bar.set_description(phase)
-            for data in tqdm(dataloader, total=len(dataloader)):
+            for data in current_epoch_progress_bar:
                 data['context'] = data['context'].to(device=device)
                 data['generate_y'] = data['generate_y'].to(device=device)
                 data['y_lengths'] = data['y_lengths'].to(device=device)
@@ -132,13 +132,15 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
                 joint_acc_score_ptr, F1_score_ptr, turn_acc_score_ptr = evaluate_metrics(predictions, "pred_bs_ptr", slots_dict['dev'])
                 evaluation_metrics = {"Joint Acc": joint_acc_score_ptr, "Turn Acc": turn_acc_score_ptr, "Joint F1": F1_score_ptr}
                 print(evaluation_metrics)
-                if F1_score_ptr > best_acc:
-                    best_acc = F1_score_ptr
+                if joint_acc_score_ptr > best_joint_acc:
+                    best_joint_acc = joint_acc_score_ptr
                     best_model_wts = copy.deepcopy(model.state_dict())
+                    model_save_path = 'save/model-joint_acc-{:.4f}'.format(best_joint_acc)
+                    torch.save(model, model_save_path)
 
     time_elapsed = time.time() - since
     iprint('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
-    iprint('Best val Acc: {:4f}'.format(best_acc))
+    iprint('Best validation joint_accurate: {:4f}'.format(best_joint_acc))
 
     # load best model weights
     model.load_state_dict(best_model_wts)
