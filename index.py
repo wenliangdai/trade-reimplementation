@@ -12,7 +12,7 @@ from models.trade import Trade
 from config import PAD_TOKEN, SLOT_GATE_DICT, SLOT_GATE_DICT_INVERSE
 
 
-def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion_gate, optimizer, scheduler, num_epochs, print_iter, patience):
+def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion_gate, optimizer, scheduler, clip, num_epochs, print_iter, patience):
     since = time.time()
 
     best_model_wts = copy.deepcopy(model.state_dict())
@@ -61,11 +61,12 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
 
                     loss = loss_ptr + loss_gate
 
-                    if iteration % print_iter == 0:
+                    if phase == 'train' and iteration % print_iter == 0:
                         print('Iteration {}: loss_ptr = {:4f}, loss_gate = {:4f}'.format(iteration, loss_ptr, loss_gate))
 
                     if phase == 'train':
                         loss.backward()
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), clip)
                         optimizer.step()
 
                     # Calculate validation metrics
@@ -267,8 +268,10 @@ if __name__ == '__main__':
         criterion_gate=criterion_gate,
         optimizer=optimizer,
         scheduler=scheduler,
+        clip=args['clip'],
         num_epochs=args['epoch'],
-        print_iter=args['print_iter']
+        print_iter=args['print_iter'],
+        patience=args['patience']
     )
 
     # for data in train_dataloader:
