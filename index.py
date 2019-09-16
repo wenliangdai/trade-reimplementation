@@ -23,7 +23,7 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
         iprint('Epoch {}'.format(n_epoch))
         print('-' * 10)
         total_progress_bar.set_description('Training progress (current epoch {})'.format(n_epoch + 1))
-        for phase in ['train', 'val']:
+        for phase in ['val', 'train']:
             if phase == 'train':
                 model.train() # Set model to training mode
             else:
@@ -49,8 +49,8 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
                 with torch.set_grad_enabled(phase == 'train'):
                     all_point_outputs, all_gate_outputs, words_point_out = model(data=data, slots_type=('train' if phase == 'train' else 'dev'))
 
-                    logits = all_point_outputs.transpose(1, 3).transpose(0, 2).contiguous()
-                    targets = data["generate_y"].transpose(0, 2).contiguous()
+                    logits = all_point_outputs.transpose(0, 1).transpose(1, 3).transpose(2, 3).contiguous()
+                    targets = data["generate_y"].contiguous()
                     loss_ptr = criterion_ptr(logits, targets)
 
                     logits_gate = all_gate_outputs.transpose(1, 2).contiguous()

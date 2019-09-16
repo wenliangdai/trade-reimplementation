@@ -16,7 +16,7 @@ class Trade(nn.Module):
         self.vocab = vocabs[0]
         self.mem_vocab = vocabs[1]
         self.slots_dict = slots_dict
-        self.batch_size = args['batch']
+        # self.batch_size = args['batch']
         self.path = args['path']
         self.task = args['task']
         self.lr = args['learning_rate']
@@ -51,8 +51,6 @@ class Trade(nn.Module):
             )
             rand_mask = torch.Tensor(data=rand_mask).long()
             rand_mask = rand_mask.to(device=self.device)
-            # if USE_CUDA:
-            #     rand_mask = rand_mask.cuda()
             story = data['context'] * rand_mask.long()
         else:
             story = data['context']
@@ -62,10 +60,10 @@ class Trade(nn.Module):
 
         # Get the words that can be copy from the memory
         # self.copy_list = data['context_plain']
-        max_res_len = data['generate_y'].size(2) if self.encoder.training else 10
-
+        max_res_len = data['generate_y'].size(2) # if self.encoder.training else 10
+        batch_size = len(data['context_len']) # get batch_size in this way because the last batch's size might be smaller
         all_point_outputs, all_gate_outputs, words_point_out = self.decoder.forward(
-            batch_size=self.batch_size,
+            batch_size=batch_size,
             encoded_hidden=encoded_hidden,
             encoded_outputs=encoded_outputs,
             encoded_lens=data['context_len'],
@@ -185,13 +183,11 @@ class Generator(nn.Module):
             if this_domain in self.slot_w2i.keys():
                 domain_w2idx = self.slot_w2i[this_domain]
                 domain_w2idx = torch.tensor([domain_w2idx], device=self.device)
-                # if USE_CUDA: domain_w2idx = domain_w2idx.cuda()
                 domain_emb = self.Slot_emb(domain_w2idx)
             # Slot embbeding
             if this_slot in self.slot_w2i.keys():
                 slot_w2idx = self.slot_w2i[this_slot]
                 slot_w2idx = torch.tensor([slot_w2idx], device=self.device)
-                # if USE_CUDA: slot_w2idx = slot_w2idx.cuda()
                 slot_emb = self.Slot_emb(slot_w2idx)
 
             # Combine two embeddings as one query
@@ -225,7 +221,6 @@ class Generator(nn.Module):
 
                 p_context_ptr = torch.zeros(p_vocab.size(), device=self.device)
                 p_gen = p_gen.expand_as(p_context_ptr)
-                # if USE_CUDA: p_context_ptr = p_context_ptr.cuda()
                 p_context_ptr.scatter_add_(1, story, scores)
                 p_vocab_final = (1 - p_gen) * p_context_ptr + p_gen * p_vocab
                 pred_word = torch.argmax(p_vocab_final, dim=1)
