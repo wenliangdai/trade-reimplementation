@@ -26,6 +26,7 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
         print('-' * 10)
         # total_progress_bar.set_description('Training progress (current epoch {})'.format(n_epoch + 1))
         for phase in ['train', 'val']:
+            print('Phase = {}'.format(phase))
             if phase == 'train':
                 model.train() # Set model to training mode
             else:
@@ -37,9 +38,9 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
             predictions = {}
 
             dataloader = dataloaders[phase]
-            current_epoch_progress_bar = tqdm(dataloader, total=len(dataloader))
-            current_epoch_progress_bar.set_description(phase)
-            for iteration, data in enumerate(current_epoch_progress_bar):
+            # current_epoch_progress_bar = tqdm(dataloader, total=len(dataloader))
+            # current_epoch_progress_bar.set_description(phase)
+            for iteration, data in enumerate(dataloader):
                 data['context'] = data['context'].to(device=device)
                 data['generate_y'] = data['generate_y'].to(device=device)
                 data['y_lengths'] = data['y_lengths'].to(device=device)
