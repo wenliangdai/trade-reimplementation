@@ -19,6 +19,7 @@ def get_args():
     parser.add_argument('-bsz', '--batch', help='Batch_size', required=False, type=int)
     parser.add_argument('-ep', '--epoch', help='Number of epochs', required=False, type=int, default=200)
     parser.add_argument('-cu', '--cuda', help='Cude device number', required=False, type=str, default='0')
+    parser.add_argument('-pi', '--print_iter', help='Every n iterations to print loss values', required=False, type=int, default=100)
 
     # Testing Setting
     parser.add_argument('-rundev', '--run_dev_testing', help='', required=False, default=0, type=int)

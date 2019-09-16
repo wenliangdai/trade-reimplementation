@@ -12,7 +12,7 @@ from models.trade import Trade
 from config import PAD_TOKEN, SLOT_GATE_DICT, SLOT_GATE_DICT_INVERSE
 
 
-def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion_gate, optimizer, scheduler, num_epochs):
+def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion_gate, optimizer, scheduler, num_epochs, print_iter):
     since = time.time()
 
     best_model_wts = copy.deepcopy(model.state_dict())
@@ -23,7 +23,7 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
         iprint('Epoch {}'.format(n_epoch))
         print('-' * 10)
         total_progress_bar.set_description('Training progress (current epoch {})'.format(n_epoch + 1))
-        for phase in ['val', 'train']:
+        for phase in ['train', 'val']:
             if phase == 'train':
                 model.train() # Set model to training mode
             else:
@@ -37,7 +37,7 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
             dataloader = dataloaders[phase]
             current_epoch_progress_bar = tqdm(dataloader, total=len(dataloader))
             current_epoch_progress_bar.set_description(phase)
-            for data in current_epoch_progress_bar:
+            for iteration, data in enumerate(current_epoch_progress_bar):
                 data['context'] = data['context'].to(device=device)
                 data['generate_y'] = data['generate_y'].to(device=device)
                 data['y_lengths'] = data['y_lengths'].to(device=device)
@@ -58,6 +58,9 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
                     loss_gate = criterion_gate(logits_gate, targets_gate)
 
                     loss = loss_ptr + loss_gate
+
+                    if iteration % print_iter == 0:
+                        iprint('loss_ptr: {:4f}, loss_gate: {:4f}'.format(loss_ptr, loss_gate))
 
                     if phase == 'train':
                         loss.backward()
@@ -252,7 +255,8 @@ if __name__ == '__main__':
         criterion_gate=criterion_gate,
         optimizer=optimizer,
         scheduler=scheduler,
-        num_epochs=args['epoch']
+        num_epochs=args['epoch'],
+        print_iter=args['print_iter']
     )
 
     # for data in train_dataloader:
