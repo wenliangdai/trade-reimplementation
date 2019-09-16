@@ -126,8 +126,8 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
                 running_loss_ptr += loss_ptr.item() * np.sum(list(targets.size()))
                 running_loss_gate += loss_gate.item() * np.sum(list(targets_gate.size()))
 
-            if phase == 'train':
-                scheduler.step()
+            # if phase == 'train':
+            #     scheduler.step()
 
             # deep copy the model
             if phase == 'val':
@@ -135,6 +135,9 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
                 print("Joint Acc: {:.4f}".format(joint_acc_score_ptr))
                 print("Turn Acc: {:.4f}".format(turn_acc_score_ptr))
                 print("Joint F1: {:.4f}".format(F1_score_ptr))
+
+                scheduler.step(joint_acc_score_ptr)
+
                 if joint_acc_score_ptr > best_joint_acc:
                     best_joint_acc = joint_acc_score_ptr
                     best_model_wts = copy.deepcopy(model.state_dict())
