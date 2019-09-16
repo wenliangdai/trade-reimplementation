@@ -12,17 +12,19 @@ from models.trade import Trade
 from config import PAD_TOKEN, SLOT_GATE_DICT, SLOT_GATE_DICT_INVERSE
 
 
-def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion_gate, optimizer, scheduler, num_epochs, print_iter):
+def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion_gate, optimizer, scheduler, num_epochs, print_iter, patience):
     since = time.time()
 
     best_model_wts = copy.deepcopy(model.state_dict())
     best_joint_acc = 0.0
 
-    total_progress_bar = tqdm(range(args['epoch']))
-    for n_epoch in total_progress_bar:
-        iprint('Epoch {}'.format(n_epoch))
+    patience_counter = 0
+
+    # total_progress_bar = tqdm(range(args['epoch']))
+    for n_epoch in range(args['epoch']):
+        print('Epoch {}'.format(n_epoch))
         print('-' * 10)
-        total_progress_bar.set_description('Training progress (current epoch {})'.format(n_epoch + 1))
+        # total_progress_bar.set_description('Training progress (current epoch {})'.format(n_epoch + 1))
         for phase in ['train', 'val']:
             if phase == 'train':
                 model.train() # Set model to training mode
@@ -60,7 +62,7 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
                     loss = loss_ptr + loss_gate
 
                     if iteration % print_iter == 0:
-                        iprint('loss_ptr: {:4f}, loss_gate: {:4f}'.format(loss_ptr, loss_gate))
+                        print('Iteration {}: loss_ptr = {:4f}, loss_gate = {:4f}'.format(iteration, loss_ptr, loss_gate))
 
                     if phase == 'train':
                         loss.backward()
@@ -139,10 +141,17 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
                 scheduler.step(joint_acc_score_ptr)
 
                 if joint_acc_score_ptr > best_joint_acc:
+                    patience_counter = 0
                     best_joint_acc = joint_acc_score_ptr
                     best_model_wts = copy.deepcopy(model.state_dict())
-                    model_save_path = 'save/model-joint_acc-{:.4f}'.format(best_joint_acc)
+                    model_save_path = 'save/model-joint_acc-{:.4f}.pt'.format(best_joint_acc)
                     torch.save(model, model_save_path)
+
+        if patience_counter == patience:
+            iprint('Early stop at epoch {}'.format(n_epoch))
+            break
+
+        print()
 
     time_elapsed = time.time() - since
     iprint('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
