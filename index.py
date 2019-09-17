@@ -3,14 +3,14 @@ import torch
 import copy
 import time
 import numpy as np
-from tqdm import tqdm
+# from tqdm import tqdm
 from torch import nn
 from utils import iprint
 from cli import get_args
 from data_preprocess import get_all_data
 from models.trade import Trade
 from config import PAD_TOKEN, SLOT_GATE_DICT, SLOT_GATE_DICT_INVERSE
-
+from masked_cross_entropy import masked_cross_entropy_for_value
 
 def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion_gate, optimizer, scheduler, clip, num_epochs, print_iter, patience):
     since = time.time()
@@ -52,9 +52,15 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
                 with torch.set_grad_enabled(phase == 'train'):
                     all_point_outputs, all_gate_outputs, words_point_out = model(data=data, slots_type=('train' if phase == 'train' else 'dev'))
 
-                    logits = all_point_outputs.transpose(0, 1).transpose(1, 3).transpose(2, 3).contiguous()
-                    targets = data["generate_y"].contiguous()
-                    loss_ptr = criterion_ptr(logits, targets)
+                    # logits = all_point_outputs.transpose(0, 1).transpose(1, 3).transpose(2, 3).contiguous()
+                    # targets = data["generate_y"].contiguous()
+                    # loss_ptr = criterion_ptr(logits, targets)
+
+                    loss_ptr = masked_cross_entropy_for_value(
+                        all_point_outputs.transpose(0, 1).contiguous(),
+                        data["generate_y"].contiguous(), # [:,:len(self.point_slots)].contiguous(),
+                        data["y_lengths"]
+                    )
 
                     logits_gate = all_gate_outputs.transpose(1, 2).contiguous()
                     targets_gate = data["gating_label"].t().contiguous()
@@ -72,15 +78,6 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
 
                     # Calculate validation metrics
                     if phase == 'val':
-                        # b_gates = all_gate_outputs.transpose(0, 1).argmax(dim=2).numpy()
-                        # for i, gates in enumerate(b_gates):
-                        #     b_gates[i] = list(filter(lambda n: n != SLOT_GATE_DICT['none'], gates))
-                        # for i, gates in enumerate(b_gates):
-                        #     for j, gate_val in enumerate(gates):
-                        #         b_gates[i, j] = np.tranpose(words_point_out[j])[i]
-                        #         b_gates[i, j] = ' '.join(list(filter(lambda w: w != 'EOS', b_gates[i, j])))
-                        #     b_gates[i] = list(filter(lambda s: s != 'none', b_gates[i]))
-                        # data['turn_belief']
                         batch_size = len(data['context_len'])
                         for bi in range(batch_size):
                             if data["ID"][bi] not in predictions.keys():
