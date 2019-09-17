@@ -16,6 +16,8 @@ from masked_cross_entropy import masked_cross_entropy_for_value
 
 datetimestr = datetime.datetime.now().strftime('%Y-%b-%d_%H:%M:%S')
 saving_dir = './save/{}/'.format(datetimestr)
+if not os.path.exists('./save'):
+    os.mkdir(path='./save')
 os.mkdir(path=saving_dir)
 predictions = {}
 
