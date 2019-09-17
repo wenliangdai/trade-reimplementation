@@ -124,7 +124,7 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
                             predictions[data["ID"][bi]][data["turn_id"][bi]]["pred_bs_ptr"] = predict_belief_bsz_ptr
 
                 # statistics
-                running_loss_ptr += loss_ptr.item() * np.sum(list(targets.size()))
+                running_loss_ptr += loss_ptr.item() * np.sum(list(data["generate_y"].size()))
                 running_loss_gate += loss_gate.item() * np.sum(list(targets_gate.size()))
 
             # if phase == 'train':
