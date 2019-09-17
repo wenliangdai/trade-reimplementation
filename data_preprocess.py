@@ -183,11 +183,11 @@ def get_all_data(args, training=True, batch_size=100) -> Tuple[DataLoader, DataL
     slots_dict = {
         'all': all_slots,
         'train': slot_train,
-        'dev': slot_dev,
+        'val': slot_dev,
         'test': slot_test
     }
-    iprint('[Train Set & Dev Set Slots]: Number is {} in total'.format(len(slots_dict['dev'])))
-    iprint(slots_dict['dev'])
+    iprint('[Train Set & Dev Set Slots]: Number is {} in total'.format(len(slots_dict['val'])))
+    iprint(slots_dict['val'])
     iprint('[Test Set Slots]: Number is {} in total'.format(len(slots_dict['test'])))
     iprint(slots_dict['test'])
     vocabs = [vocab, mem_vocab]

@@ -2,6 +2,8 @@ import os
 import torch
 import copy
 import time
+import datetime
+import pickle
 import numpy as np
 # from tqdm import tqdm
 from torch import nn
@@ -12,6 +14,11 @@ from models.trade import Trade
 from config import PAD_TOKEN, SLOT_GATE_DICT, SLOT_GATE_DICT_INVERSE
 from masked_cross_entropy import masked_cross_entropy_for_value
 
+datetimestr = datetime.datetime.now().strftime('%Y-%b-%d_%H:%M:%S')
+saving_dir = './save/{}/'.format(datetimestr)
+os.mkdir(path=saving_dir)
+predictions = {}
+
 def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion_gate, optimizer, scheduler, clip, num_epochs, print_iter, patience):
     since = time.time()
 
@@ -20,26 +27,41 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
 
     patience_counter = 0
 
-    # total_progress_bar = tqdm(range(args['epoch']))
+    # Statistics
+    results = {
+        'train': {
+            'loss_ptr': [],
+            'loss_gate': [],
+            'joint_acc': [],
+            'turn_acc': [],
+            'f1': []
+        },
+        'val': {
+            'loss_ptr': [],
+            'loss_gate': [],
+            'joint_acc': [],
+            'turn_acc': [],
+            'f1': []
+        }
+    }
+
     for n_epoch in range(args['epoch']):
         print('Epoch {}'.format(n_epoch))
-        print('-' * 10)
-        # total_progress_bar.set_description('Training progress (current epoch {})'.format(n_epoch + 1))
+        print('=' * 20)
+
         for phase in ['train', 'val']:
-            print('Phase = {}'.format(phase))
+            print('Phase [{}]'.format(phase))
+            print('-' * 10)
+
             if phase == 'train':
                 model.train() # Set model to training mode
             else:
                 model.eval() # Set model to evaluate mode
 
-            running_loss_ptr = 0.0
-            running_loss_gate = 0.0
-
+            global predictions
             predictions = {}
 
             dataloader = dataloaders[phase]
-            # current_epoch_progress_bar = tqdm(dataloader, total=len(dataloader))
-            # current_epoch_progress_bar.set_description(phase)
             for iteration, data in enumerate(dataloader):
                 data['context'] = data['context'].to(device=device)
                 data['generate_y'] = data['generate_y'].to(device=device)
@@ -50,7 +72,7 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
                 optimizer.zero_grad()
 
                 with torch.set_grad_enabled(phase == 'train'):
-                    all_point_outputs, all_gate_outputs, words_point_out = model(data=data, slots_type=('train' if phase == 'train' else 'dev'))
+                    all_point_outputs, all_gate_outputs, words_point_out = model(data=data, slots_type=phase)
 
                     # logits = all_point_outputs.transpose(0, 1).transpose(1, 3).transpose(2, 3).contiguous()
                     # targets = data["generate_y"].contiguous()
@@ -76,74 +98,33 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
                         torch.nn.utils.clip_grad_norm_(model.parameters(), clip)
                         optimizer.step()
 
-                    # Calculate validation metrics
-                    if phase == 'val':
-                        batch_size = len(data['context_len'])
-                        for bi in range(batch_size):
-                            if data["ID"][bi] not in predictions.keys():
-                                predictions[data["ID"][bi]] = {}
-                            predictions[data["ID"][bi]][data["turn_id"][bi]] = {"turn_belief": data["turn_belief"][bi]}
-                            predict_belief_bsz_ptr = []
-                            gate = torch.argmax(all_gate_outputs.transpose(0, 1)[bi], dim=1)
+            # Calculate evaluation metrics and save statistics to file
+            accumulate_result(data, slots_dict[phase], all_gate_outputs, words_point_out)
+            joint_acc_score_ptr, F1_score_ptr, turn_acc_score_ptr = evaluate_metrics(
+                predictions,
+                "pred_bs_ptr",
+                slots_dict[phase]
+            )
+            results[phase]['loss_ptr'].append(loss_ptr.item())
+            results[phase]['loss_gate'].append(loss_gate.item())
+            results[phase]['joint_acc'].append(joint_acc_score_ptr)
+            results[phase]['turn_acc'].append(turn_acc_score_ptr)
+            results[phase]['f1'].append(F1_score_ptr)
 
-                            # pointer-generator results
-                            if args["use_gate"]:
-                                for si, sg in enumerate(gate):
-                                    if sg == SLOT_GATE_DICT["none"]:
-                                        continue
-                                    elif sg == SLOT_GATE_DICT["ptr"]:
-                                        pred = np.transpose(words_point_out[si])[bi]
-                                        st = []
-                                        for e in pred:
-                                            if e == 'EOS':
-                                                break
-                                            else:
-                                                st.append(e)
-                                        st = " ".join(st)
-                                        if st == "none":
-                                            continue
-                                        else:
-                                            predict_belief_bsz_ptr.append(slots_dict['dev'][si] + "-" + str(st))
-                                    else:
-                                        predict_belief_bsz_ptr.append(slots_dict['dev'][si] + "-" + SLOT_GATE_DICT_INVERSE[sg.item()])
-                            else:
-                                for si, _ in enumerate(gate):
-                                    pred = np.transpose(words_point_out[si])[bi]
-                                    st = []
-                                    for e in pred:
-                                        if e == 'EOS':
-                                            break
-                                        else:
-                                            st.append(e)
-                                    st = " ".join(st)
-                                    if st == "none":
-                                        continue
-                                    else:
-                                        predict_belief_bsz_ptr.append(slots_dict['dev'][si] + "-" + str(st))
+            print("Joint Acc: {:.4f}".format(joint_acc_score_ptr))
+            print("Turn Acc: {:.4f}".format(turn_acc_score_ptr))
+            print("Joint F1: {:.4f}".format(F1_score_ptr))
 
-                            predictions[data["ID"][bi]][data["turn_id"][bi]]["pred_bs_ptr"] = predict_belief_bsz_ptr
-
-                # statistics
-                running_loss_ptr += loss_ptr.item() * np.sum(list(data["generate_y"].size()))
-                running_loss_gate += loss_gate.item() * np.sum(list(targets_gate.size()))
-
-            # if phase == 'train':
-            #     scheduler.step()
+            pickle.dump(results, open(os.path.join(saving_dir, 'results.p'), 'wb'))
 
             # deep copy the model
             if phase == 'val':
-                joint_acc_score_ptr, F1_score_ptr, turn_acc_score_ptr = evaluate_metrics(predictions, "pred_bs_ptr", slots_dict['dev'])
-                print("Joint Acc: {:.4f}".format(joint_acc_score_ptr))
-                print("Turn Acc: {:.4f}".format(turn_acc_score_ptr))
-                print("Joint F1: {:.4f}".format(F1_score_ptr))
-
                 scheduler.step(joint_acc_score_ptr)
-
                 if joint_acc_score_ptr > best_joint_acc:
                     patience_counter = 0
                     best_joint_acc = joint_acc_score_ptr
                     best_model_wts = copy.deepcopy(model.state_dict())
-                    model_save_path = 'save/model-joint_acc-{:.4f}.pt'.format(best_joint_acc)
+                    model_save_path = os.path.join(saving_dir, 'model-joint_acc-{:.4f}.pt'.format(best_joint_acc))
                     torch.save(model, model_save_path)
 
         if patience_counter == patience:
@@ -159,6 +140,53 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
     # load best model weights
     model.load_state_dict(best_model_wts)
     return model
+
+
+def accumulate_result(data, slots, all_gate_outputs, words_point_out):
+    batch_size = len(data['context_len'])
+    for bi in range(batch_size):
+        if data["ID"][bi] not in predictions.keys():
+            predictions[data["ID"][bi]] = {}
+        predictions[data["ID"][bi]][data["turn_id"][bi]] = {"turn_belief": data["turn_belief"][bi]}
+        predict_belief_bsz_ptr = []
+        gate = torch.argmax(all_gate_outputs.transpose(0, 1)[bi], dim=1)
+
+        # pointer-generator results
+        if args["use_gate"]:
+            for si, sg in enumerate(gate):
+                if sg == SLOT_GATE_DICT["none"]:
+                    continue
+                elif sg == SLOT_GATE_DICT["ptr"]:
+                    pred = np.transpose(words_point_out[si])[bi]
+                    st = []
+                    for e in pred:
+                        if e == 'EOS':
+                            break
+                        else:
+                            st.append(e)
+                    st = " ".join(st)
+                    if st == "none":
+                        continue
+                    else:
+                        predict_belief_bsz_ptr.append(slots[si] + "-" + str(st))
+                else:
+                    predict_belief_bsz_ptr.append(slots[si] + "-" + SLOT_GATE_DICT_INVERSE[sg.item()])
+        else:
+            for si, _ in enumerate(gate):
+                pred = np.transpose(words_point_out[si])[bi]
+                st = []
+                for e in pred:
+                    if e == 'EOS':
+                        break
+                    else:
+                        st.append(e)
+                st = " ".join(st)
+                if st == "none":
+                    continue
+                else:
+                    predict_belief_bsz_ptr.append(slots[si] + "-" + str(st))
+
+        predictions[data["ID"][bi]][data["turn_id"][bi]]["pred_bs_ptr"] = predict_belief_bsz_ptr
 
 
 def evaluate_metrics(all_prediction, from_which, slot_temp):
