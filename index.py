@@ -98,8 +98,9 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
                         torch.nn.utils.clip_grad_norm_(model.parameters(), clip)
                         optimizer.step()
 
+                accumulate_result(predictions, data, slots_dict[phase], all_gate_outputs, words_point_out)
+
             # Calculate evaluation metrics and save statistics to file
-            accumulate_result(predictions, data, slots_dict[phase], all_gate_outputs, words_point_out)
             joint_acc_score_ptr, F1_score_ptr, turn_acc_score_ptr = evaluate_metrics(
                 predictions,
                 "pred_bs_ptr",
