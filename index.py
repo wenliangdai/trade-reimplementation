@@ -19,7 +19,6 @@ saving_dir = './save/{}/'.format(datetimestr)
 if not os.path.exists('./save'):
     os.mkdir(path='./save')
 os.mkdir(path=saving_dir)
-predictions = {}
 
 def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion_gate, optimizer, scheduler, clip, num_epochs, print_iter, patience):
     since = time.time()
@@ -60,7 +59,6 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
             else:
                 model.eval() # Set model to evaluate mode
 
-            global predictions
             predictions = {}
 
             dataloader = dataloaders[phase]
@@ -101,7 +99,7 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
                         optimizer.step()
 
             # Calculate evaluation metrics and save statistics to file
-            accumulate_result(data, slots_dict[phase], all_gate_outputs, words_point_out)
+            accumulate_result(predictions, data, slots_dict[phase], all_gate_outputs, words_point_out)
             joint_acc_score_ptr, F1_score_ptr, turn_acc_score_ptr = evaluate_metrics(
                 predictions,
                 "pred_bs_ptr",
@@ -144,7 +142,7 @@ def train_model(model, device, dataloaders, slots_dict, criterion_ptr, criterion
     return model
 
 
-def accumulate_result(data, slots, all_gate_outputs, words_point_out):
+def accumulate_result(predictions, data, slots, all_gate_outputs, words_point_out):
     batch_size = len(data['context_len'])
     for bi in range(batch_size):
         if data["ID"][bi] not in predictions.keys():
